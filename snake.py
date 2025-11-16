@@ -2,6 +2,7 @@ import pygame as pg
 from random import randrange
 
 # Initialize Pygame
+pg.init()
 WINDOW = 800
 TILE_SIZE = 50
 RANGE = (TILE_SIZE // 2, WINDOW - TILE_SIZE // 2, TILE_SIZE)
@@ -14,8 +15,10 @@ snake_dir = (0, 0)
 time, time_step = 0, 150
 food = pg.rect.Rect([0, 0, TILE_SIZE - 2, TILE_SIZE - 2])
 food.center = get_random_position()
+score = 0
 
 screen = pg.display.set_mode((WINDOW, WINDOW))
+font = pg.font.SysFont('arial', 36)
 clock = pg.time.Clock()
 dirs = {pg.K_w: 1, pg.K_s: 1, pg.K_a: 1, pg.K_d: 1}
 
@@ -49,14 +52,20 @@ while True:
         food.center = get_random_position()
         length, snake_dir = 1, (0, 0)
         segments = [snake.copy()]
+        score = 0
 
     # Check for collision with food
     if snake.center == food.center:
         food.center = get_random_position()
         length += 1
+        score += 10
 
     # Draw food
     pg.draw.circle(screen, 'red', food.center, food.width // 2)
+
+    # Draw score
+    score_text = font.render(f'Score: {score}', True, 'white')
+    screen.blit(score_text, (10, 10))
 
     # Draw and update snake segments
     for segment in segments[:-1]:
