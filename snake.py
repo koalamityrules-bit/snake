@@ -59,8 +59,10 @@ while True:
     pg.draw.circle(screen, 'red', food.center, food.width // 2)
 
     # Draw and update snake segments
-    for segment in segments:
+    for segment in segments[:-1]:
         pg.draw.rect(screen, 'green', segment)
+    # draw head (last segment) in yellow
+    pg.draw.rect(screen, 'yellow', segments[-1])
 
     time_now = pg.time.get_ticks()
     if time_now - time > time_step:
