@@ -16,6 +16,9 @@ time, time_step = 0, 150
 food = pg.rect.Rect([0, 0, TILE_SIZE - 2, TILE_SIZE - 2])
 food.center = get_random_position()
 score = 0
+game_over = False
+game_over_time = 0
+game_over_display_time = 1500  # milliseconds to show the game over message
 
 screen = pg.display.set_mode((WINDOW, WINDOW))
 font = pg.font.SysFont('arial', 36)
@@ -42,17 +45,17 @@ while True:
                 snake_dir = (TILE_SIZE, 0)
                 dirs = {pg.K_w: 1, pg.K_s: 1, pg.K_a: 0, pg.K_d: 1}
 
+    time_now = pg.time.get_ticks()
+
     screen.fill('black')
     # Check borders and self eating
     self_eating = snake.center in [segment.center for segment in segments[:-1]]
     if not 0 <= snake.x < WINDOW or not 0 <= snake.y < WINDOW or self_eating:
-        # print("Game Over! You hit the wall.")
-        # exit()
-        snake.center = get_random_position()
-        food.center = get_random_position()
-        length, snake_dir = 1, (0, 0)
-        segments = [snake.copy()]
-        score = 0
+        if not game_over:
+            print("You died! Game Over!")
+            game_over = True
+            game_over_time = time_now
+            snake_dir = (0, 0)
 
     # Check for collision with food
     if snake.center == food.center:
@@ -73,8 +76,21 @@ while True:
     # draw head (last segment) in yellow
     pg.draw.rect(screen, 'yellow', segments[-1])
 
-    time_now = pg.time.get_ticks()
-    if time_now - time > time_step:
+    # If game over, draw the message and after a short delay reset the game
+    if game_over:
+        msg = font.render('You died! Game Over!', True, 'red')
+        msg_rect = msg.get_rect(center=(WINDOW // 2, WINDOW // 2))
+        screen.blit(msg, msg_rect)
+        if time_now - game_over_time > game_over_display_time:
+            # reset the game state
+            snake.center = get_random_position()
+            food.center = get_random_position()
+            length, snake_dir = 1, (0, 0)
+            segments = [snake.copy()]
+            score = 0
+            game_over = False
+
+    if (not game_over) and (time_now - time > time_step):
         time = time_now
         snake.move_ip(snake_dir)
         segments.append(snake.copy())
