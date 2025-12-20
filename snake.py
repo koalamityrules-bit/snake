@@ -1,24 +1,27 @@
 import pygame as pg
 from random import randrange
 
+DEFAULT_TIME_STEP = 150
+
 # Initialize Pygame
 pg.init()
 WINDOW = 800
 TILE_SIZE = 50
 RANGE = (TILE_SIZE // 2, WINDOW - TILE_SIZE // 2, TILE_SIZE)
 get_random_position = lambda: [randrange(*RANGE), randrange(*RANGE)]
-snake = pg.rect.Rect([0, 0, TILE_SIZE - 20, TILE_SIZE - 20])
+snake = pg.rect.Rect([0, 0, TILE_SIZE - 5, TILE_SIZE - 5])
 snake.center = get_random_position()
 length = 1
 segments = [snake.copy()]
 snake_dir = (0, 0)
-time, time_step = 0, 150
+time, time_step = 0, DEFAULT_TIME_STEP
 food = pg.rect.Rect([0, 0, TILE_SIZE - 2, TILE_SIZE - 2])
 food.center = get_random_position()
 score = 0
 game_over = False
 game_over_time = 0
 game_over_display_time = 1500  # milliseconds to show the game over message
+key_pressed = False
 
 screen = pg.display.set_mode((WINDOW, WINDOW))
 font = pg.font.SysFont('arial', 36)
@@ -44,6 +47,16 @@ while True:
             if event.key == pg.K_d and dirs[pg.K_d]:
                 snake_dir = (TILE_SIZE, 0)
                 dirs = {pg.K_w: 1, pg.K_s: 1, pg.K_a: 0, pg.K_d: 1}
+
+        keys = pg.key.get_pressed()
+        if (keys[pg.K_w] and dirs[pg.K_w]) or (keys[pg.K_s] and dirs[pg.K_s]) or (keys[pg.K_a] and dirs[pg.K_a]) or (keys[pg.K_d] and dirs[pg.K_d]):
+            time_step = DEFAULT_TIME_STEP // 2
+            key_pressed = True
+        
+        if event.type == pg.KEYUP:
+            if not (keys[pg.K_w] or keys[pg.K_s] or keys[pg.K_a] or keys[pg.K_d]) and key_pressed:
+                time_step = DEFAULT_TIME_STEP
+                key_pressed = False
 
     time_now = pg.time.get_ticks()
 
