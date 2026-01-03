@@ -18,6 +18,8 @@ time, time_step = 0, DEFAULT_TIME_STEP
 food = pg.rect.Rect([0, 0, TILE_SIZE - 2, TILE_SIZE - 2])
 food.center = get_random_position()
 score = 0
+level = 1
+obstacles = []
 game_over = False
 game_over_time = 0
 game_over_display_time = 1500  # milliseconds to show the game over message
@@ -63,7 +65,8 @@ while True:
     screen.fill('black')
     # Check borders and self eating
     self_eating = snake.center in [segment.center for segment in segments[:-1]]
-    if not 0 <= snake.x < WINDOW or not 0 <= snake.y < WINDOW or self_eating:
+    obstacle_collision = any(obs.collidepoint(snake.center) for obs in obstacles)
+    if not 0 <= snake.x < WINDOW or not 0 <= snake.y < WINDOW or self_eating or obstacle_collision:
         if not game_over:
             print("You died! Game Over!")
             game_over = True
@@ -75,13 +78,31 @@ while True:
         food.center = get_random_position()
         length += 1
         score += 10
+        # Level up every 50 points
+        if score // 50 >= level:
+            level += 1
+            time_step = max(50, DEFAULT_TIME_STEP - (level - 1) * 20)  # Speed up but not too much
+            # Add obstacles at level 3
+            if level == 3 and not obstacles:
+                obstacles = [
+                    pg.rect.Rect(200, 200, TILE_SIZE, TILE_SIZE),
+                    pg.rect.Rect(400, 400, TILE_SIZE, TILE_SIZE),
+                    pg.rect.Rect(600, 200, TILE_SIZE, TILE_SIZE),
+                ]
 
     # Draw food
     pg.draw.circle(screen, 'red', food.center, food.width // 2)
 
+    # Draw obstacles
+    for obs in obstacles:
+        pg.draw.rect(screen, 'gray', obs)
+
     # Draw score
     score_text = font.render(f'Score: {score}', True, 'white')
     screen.blit(score_text, (10, 10))
+    # Draw level
+    level_text = font.render(f'Level: {level}', True, 'white')
+    screen.blit(level_text, (10, 50))
 
     # Draw and update snake segments
     for segment in segments[:-1]:
@@ -101,6 +122,9 @@ while True:
             length, snake_dir = 1, (0, 0)
             segments = [snake.copy()]
             score = 0
+            level = 1
+            time_step = DEFAULT_TIME_STEP
+            obstacles = []
             game_over = False
 
     if (not game_over) and (time_now - time > time_step):
