@@ -26,6 +26,9 @@ game_over = False
 game_over_time = 0
 game_over_display_time = 1500  # milliseconds to show the game over message
 key_pressed = False
+animating_level_up = False
+animation_start_time = 0
+animation_duration = 1000  # 1 second
 
 screen = pg.display.set_mode((WINDOW, WINDOW))
 font = pg.font.SysFont('arial', 36)
@@ -65,52 +68,39 @@ while True:
     time_now = pg.time.get_ticks()
 
     screen.fill('black')
-    # Check borders and self eating
-    self_eating = snake.center in [segment.center for segment in segments[:-1]]
-    obstacle_collision = any(obs.collidepoint(snake.center) for obs in obstacles)
-    if not 0 <= snake.x < WINDOW or not 0 <= snake.y < WINDOW or self_eating or obstacle_collision:
-        if not game_over:
-            print("You died! Game Over!")
-            game_over = True
-            game_over_time = time_now
-            snake_dir = (0, 0)
 
-    # Check for collision with food
-    if snake.center == food.center:
-        food.center = get_random_position()
-        # Ensure food doesn't spawn on obstacles, snake, or portal
-        while any(obs.collidepoint(food.center) for obs in obstacles) or any(food.collidepoint(seg.center) for seg in segments) or (portal and portal.collidepoint(food.center)):
+    if not animating_level_up:
+        # Check borders and self eating
+        self_eating = snake.center in [segment.center for segment in segments[:-1]]
+        obstacle_collision = any(obs.collidepoint(snake.center) for obs in obstacles)
+        if not 0 <= snake.x < WINDOW or not 0 <= snake.y < WINDOW or self_eating or obstacle_collision:
+            if not game_over:
+                print("You died! Game Over!")
+                game_over = True
+                game_over_time = time_now
+                snake_dir = (0, 0)
+
+        # Check for collision with food
+        if snake.center == food.center:
             food.center = get_random_position()
-        length += 1
-        score += 10
-        # Check if ready for next level
-        if score >= next_level_score and not portal:
-            portal = pg.rect.Rect([0, 0, TILE_SIZE, TILE_SIZE])
-            portal.center = get_random_position()
-            # Ensure portal doesn't overlap with food, snake, or obstacles
-            while portal.colliderect(food) or any(portal.colliderect(seg) for seg in segments) or any(portal.colliderect(obs) for obs in obstacles):
+            # Ensure food doesn't spawn on obstacles, snake, or portal
+            while any(obs.collidepoint(food.center) for obs in obstacles) or any(food.collidepoint(seg.center) for seg in segments) or (portal and portal.collidepoint(food.center)):
+                food.center = get_random_position()
+            length += 1
+            score += 10
+            # Check if ready for next level
+            if score >= next_level_score and not portal:
+                portal = pg.rect.Rect([0, 0, TILE_SIZE, TILE_SIZE])
                 portal.center = get_random_position()
+                # Ensure portal doesn't overlap with food, snake, or obstacles
+                while portal.colliderect(food) or any(portal.colliderect(seg) for seg in segments) or any(portal.colliderect(obs) for obs in obstacles):
+                    portal.center = get_random_position()
 
-    # Check for collision with portal
-    if portal and portal.collidepoint(snake.center):
-        level += 1
-        next_level_score += 50
-        time_step = max(50, DEFAULT_TIME_STEP - (level - 1) * 20)  # Speed up but not too much
-        portal = None
-        # Add obstacles progressively
-        if level == 3 and not obstacles:
-            obstacles = [
-                pg.rect.Rect(200, 200, TILE_SIZE, TILE_SIZE),
-                pg.rect.Rect(400, 400, TILE_SIZE, TILE_SIZE),
-                pg.rect.Rect(600, 200, TILE_SIZE, TILE_SIZE),
-            ]
-        elif level > 3:
-            # Add more obstacles for higher levels
-            new_obs = pg.rect.Rect([0, 0, TILE_SIZE, TILE_SIZE])
-            new_obs.center = get_random_position()
-            while any(new_obs.colliderect(obs) for obs in obstacles) or new_obs.colliderect(food) or any(new_obs.colliderect(seg) for seg in segments):
-                new_obs.center = get_random_position()
-            obstacles.append(new_obs)
+        # Check for collision with portal
+        if portal and portal.collidepoint(snake.center) and not animating_level_up:
+            animating_level_up = True
+            animation_start_time = time_now
+            portal = None
 
     # Draw food
     pg.draw.circle(screen, 'red', food.center, food.width // 2)
@@ -153,9 +143,42 @@ while True:
             time_step = DEFAULT_TIME_STEP
             obstacles = []
             portal = None
+            animating_level_up = False
             game_over = False
 
-    if (not game_over) and (time_now - time > time_step):
+    # Handle level up animation
+    if animating_level_up:
+        # Calculate fade alpha (0 to 255)
+        elapsed = time_now - animation_start_time
+        alpha = min(255, (elapsed / animation_duration) * 255)
+        # Create a surface for the overlay
+        overlay = pg.Surface((WINDOW, WINDOW))
+        overlay.set_alpha(alpha)
+        overlay.fill('black')
+        screen.blit(overlay, (0, 0))
+        # Check if animation is complete
+        if elapsed > animation_duration:
+            # Complete level up
+            level += 1
+            next_level_score += 50
+            time_step = max(50, DEFAULT_TIME_STEP - (level - 1) * 20)  # Speed up but not too much
+            # Add obstacles progressively
+            if level == 3 and not obstacles:
+                obstacles = [
+                    pg.rect.Rect(200, 200, TILE_SIZE, TILE_SIZE),
+                    pg.rect.Rect(400, 400, TILE_SIZE, TILE_SIZE),
+                    pg.rect.Rect(600, 200, TILE_SIZE, TILE_SIZE),
+                ]
+            elif level > 3:
+                # Add more obstacles for higher levels
+                new_obs = pg.rect.Rect([0, 0, TILE_SIZE, TILE_SIZE])
+                new_obs.center = get_random_position()
+                while any(new_obs.colliderect(obs) for obs in obstacles) or new_obs.colliderect(food) or any(new_obs.colliderect(seg) for seg in segments):
+                    new_obs.center = get_random_position()
+                obstacles.append(new_obs)
+            animating_level_up = False
+
+    if (not game_over) and (not animating_level_up) and (time_now - time > time_step):
         time = time_now
         snake.move_ip(snake_dir)
         segments.append(snake.copy())
