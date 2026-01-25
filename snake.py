@@ -22,6 +22,7 @@ level = 1
 next_level_score = 50
 obstacles = []
 portal = None
+boss_apple = None  # Boss apple for level 1
 game_over = False
 game_over_time = 0
 game_over_display_time = 1500  # milliseconds to show the game over message
@@ -29,6 +30,8 @@ key_pressed = False
 animating_level_up = False
 animation_start_time = 0
 animation_duration = 1000  # 1 second
+boss_move_time = 0
+boss_move_step = 100  # milliseconds between boss moves
 
 screen = pg.display.set_mode((WINDOW, WINDOW))
 font = pg.font.SysFont('arial', 36)
@@ -98,12 +101,37 @@ while True:
 
         # Check for collision with portal
         if portal and portal.collidepoint(snake.center) and not animating_level_up:
+            if level == 1:
+                # Spawn boss apple instead of advancing level
+                boss_apple = pg.rect.Rect([0, 0, TILE_SIZE - 2, TILE_SIZE - 2])
+                boss_apple.center = get_random_position()
+                portal = None
+                boss_move_time = time_now
+            else:
+                animating_level_up = True
+                animation_start_time = time_now
+                portal = None
+        
+        # Check for collision with boss apple
+        if boss_apple and abs(snake.center[0] - boss_apple.center[0]) < TILE_SIZE and abs(snake.center[1] - boss_apple.center[1]) < TILE_SIZE:
+            boss_apple = None
             animating_level_up = True
             animation_start_time = time_now
-            portal = None
+            score += 50  # Bonus for defeating the boss
 
     # Draw food
     pg.draw.circle(screen, 'red', food.center, food.width // 2)
+    
+    # Draw boss apple if active
+    if boss_apple:
+        pg.draw.circle(screen, 'gold', boss_apple.center, boss_apple.width // 2)
+        # Draw a crown on the boss
+        crown_offset = boss_apple.width // 4
+        pg.draw.polygon(screen, 'gold', [
+            (boss_apple.center[0] - crown_offset, boss_apple.center[1] - crown_offset),
+            (boss_apple.center[0], boss_apple.center[1] - crown_offset - crown_offset // 2),
+            (boss_apple.center[0] + crown_offset, boss_apple.center[1] - crown_offset)
+        ])
 
     # Draw obstacles
     for obs in obstacles:
@@ -143,6 +171,7 @@ while True:
             time_step = DEFAULT_TIME_STEP
             obstacles = []
             portal = None
+            boss_apple = None
             animating_level_up = False
             game_over = False
 
@@ -183,6 +212,22 @@ while True:
         snake.move_ip(snake_dir)
         segments.append(snake.copy())
         segments = segments[-length:]
+        
+        # Move boss apple away from snake
+        if boss_apple and (time_now - boss_move_time > boss_move_step):
+            boss_move_time = time_now
+            # Calculate direction away from snake
+            dx = boss_apple.center[0] - snake.center[0]
+            dy = boss_apple.center[1] - snake.center[1]
+            # Normalize and move
+            distance = (dx**2 + dy**2)**0.5
+            if distance > 0:
+                dx = (dx / distance) * TILE_SIZE
+                dy = (dy / distance) * TILE_SIZE
+                boss_apple.move_ip(dx, dy)
+                # Keep boss apple in bounds
+                boss_apple.x = max(TILE_SIZE // 2, min(WINDOW - TILE_SIZE // 2, boss_apple.x))
+                boss_apple.y = max(TILE_SIZE // 2, min(WINDOW - TILE_SIZE // 2, boss_apple.y))
 
     pg.display.flip()
     clock.tick(60)

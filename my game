@@ -1,0 +1,7 @@
+import pygame as pg
+
+
+class Softwarerender
+    def __init__(self):
+        pg.init()
+        self.RES   self.WIDTH
